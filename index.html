@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Expense Manager</title>
+
+<style>
+  body {
+    font-family: Arial;
+    max-width: 420px;
+    margin: auto;
+    padding: 20px;
+  }
+
+  select, input, button {
+    width: 100%;
+    padding: 10px;
+    margin-top: 10px;
+  }
+
+  h2 {
+    text-align: center;
+  }
+
+  .box {
+    margin-top: 15px;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+  }
+
+  .summary {
+    background: #f3f3f3;
+    padding: 10px;
+    margin-top: 15px;
+  }
+
+  ul {
+    padding-left: 20px;
+  }
+</style>
+</head>
+
+<body>
+
+<h2>💰 Expense Manager</h2>
+
+<!-- MONTH -->
+<label>Select Month</label>
+<input type="month" id="monthPicker">
+
+<!-- MAIN TYPE -->
+<label>Main Type</label>
+<select id="mainType" onchange="updateSubTypes()">
+  <option value="">Select</option>
+  <option value="Personal">Personal</option>
+  <option value="Office">Office</option>
+  <option value="House Build">House Build</option>
+</select>
+
+<!-- CATEGORY -->
+<label>Category</label>
+<select id="category"></select>
+
+<div class="box">
+  <label>Amount Added</label>
+  <input type="number" id="added">
+
+  <label>Amount Spent</label>
+  <input type="number" id="spent">
+</div>
+
+<div class="summary">
+  <p><b>Total Added:</b> ₹<span id="totalAdded">0</span></p>
+  <p><b>Total Spent:</b> ₹<span id="totalSpent">0</span></p>
+  <p><b>Remaining:</b> ₹<span id="remaining">0</span></p>
+</div>
+
+<button onclick="saveData()">Save</button>
+
+<h3>🗂 Last 3 Months Summary</h3>
+<ul id="historyList"></ul>
+
+<button onclick="exportExcel()">Export Excel</button>
+
+<script>
+const API_URL = "https://script.google.com/macros/s/AKfycbwh4o8vv19d2ZtdjvU2FXyU_E6qaBugu_fXHNF8OwSW4G5apSLjURFYDyzENUV_KhrcuQ/exec";
+
+let monthData = {};
+let currentMonth = new Date().toISOString().slice(0, 7);
+
+document.getElementById("monthPicker").value = currentMonth;
+
+const categoryMap = {
+  Personal: ["Food", "Rent", "Friends", "Home", "Others"],
+  Office: ["Card", "Game"],
+  "House Build": ["Sand", "EB", "Bricks", "Cement", "Electrician", "Iron Builder", "Other"]
+};
+
+function updateSubTypes() {
+  const type = document.getElementById("mainType").value;
+  const cat = document.getElementById("category");
+  cat.innerHTML = "";
+
+  (categoryMap[type] || []).forEach(v => {
+    const opt = document.createElement("option");
+    opt.textContent = v;
+    cat.appendChild(opt);
+  });
+}
+
+function saveData() {
+  const added = Number(document.getElementById("added").value) || 0;
+  const spent = Number(document.getElementById("spent").value) || 0;
+  const mainType = document.getElementById("mainType").value;
+  const category = document.getElementById("category").value;
+
+  if (!monthData[currentMonth]) {
+    monthData[currentMonth] = { added: 0, spent: 0 };
+  }
+
+  monthData[currentMonth].added += added;
+  monthData[currentMonth].spent += spent;
+
+  updateSummary();
+
+  fetch(API_URL, {
+    method: "POST",
+    body: JSON.stringify({
+      month: currentMonth,
+      mainType,
+      category,
+      added,
+      spent,
+      remaining: monthData[currentMonth].added - monthData[currentMonth].spent
+    })
+  });
+
+  alert("Saved successfully ✅");
+}
+
+function updateSummary() {
+  const d = monthData[currentMonth] || { added: 0, spent: 0 };
+  document.getElementById("totalAdded").innerText = d.added;
+  document.getElementById("totalSpent").innerText = d.spent;
+  document.getElementById("remaining").innerText = d.added - d.spent;
+}
+
+// Load last 3 months summary
+function loadHistory() {
+  fetch(API_URL)
+    .then(res => res.json())
+    .then(data => {
+      const list = document.getElementById("historyList");
+      list.innerHTML = "";
+
+      data.forEach(item => {
+        const li = document.createElement("li");
+        li.textContent = `${item[0]} → ₹${item[1]}`;
+        list.appendChild(li);
+      });
+    });
+}
+
+function exportExcel() {
+  const SHEET_ID = "14DntGpbPle9sA2jonUKSA14JzUixUG4Kx5etfNNSIok";
+  window.open(`https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=xlsx`);
+}
+
+loadHistory();
+</script>
+
+</body>
+</html>
